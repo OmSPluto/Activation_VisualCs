@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -57,7 +58,7 @@
               <option value="ReLU">ReLU</option>
               <option value="Sigmoid">Sigmoid</option>
               <option value="Tanh">Tanh</option>
-              <option value="LeakyReLU">Leaky ReLU</option>
+              <option value="Leaky ReLU">Leaky ReLU</option>
               <option value="Softmax">Softmax</option>
             </select>
           </div>
@@ -89,15 +90,9 @@
         </div>
 
         <!-- Explanation -->
-        <h4>Explanation</h4>
+        <h4>Runtime Behavior</h4>
         <div class="info-panel" id="explanation">
-          <p>Select an activation function and input value to see the results.</p>
-        </div>
-
-        <!-- Educational Content -->
-        <h4>Educational Content</h4>
-        <div class="info-panel" id="info-panel">
-          <p id="function-info">Select an activation function to learn more about it.</p>
+          <p>Select an activation function and input value to see its runtime behavior.</p>
         </div>
 
         <!-- Gamification Challenge -->
@@ -124,26 +119,65 @@
   <script>
     // Activation Functions
     const activationFunctions = {
-      ReLU: (x) => Math.max(0, x),
-      Sigmoid: (x) => 1 / (1 + Math.exp(-x)),
-      Tanh: (x) => Math.tanh(x),
-      LeakyReLU: (x) => (x > 0 ? x : 0.01 * x),
-      Softmax: (x) => Math.exp(x) / (Math.exp(x) + Math.exp(-x)), // Simplified for single input
+      "ReLU": (x) => Math.max(0, x),
+      "Sigmoid": (x) => 1 / (1 + Math.exp(-x)),
+      "Tanh": (x) => Math.tanh(x),
+      "Leaky ReLU": (x) => (x > 0 ? x : 0.01 * x),
+      "Softmax": (x) => Math.exp(x) / (Math.exp(x) + Math.exp(-x)), // Simplified for single input
     };
 
     // Derivatives (Gradients)
     const derivatives = {
-      ReLU: (x) => (x > 0 ? 1 : 0),
-      Sigmoid: (x) => {
+      "ReLU": (x) => (x > 0 ? 1 : 0),
+      "Sigmoid": (x) => {
         const sigmoid = 1 / (1 + Math.exp(-x));
         return sigmoid * (1 - sigmoid);
       },
-      Tanh: (x) => 1 - Math.pow(Math.tanh(x), 2),
-      LeakyReLU: (x) => (x > 0 ? 1 : 0.01),
-      Softmax: (x) => {
+      "Tanh": (x) => 1 - Math.pow(Math.tanh(x), 2),
+      "Leaky ReLU": (x) => (x > 0 ? 1 : 0.01),
+      "Softmax": (x) => {
         const softmax = Math.exp(x) / (Math.exp(x) + Math.exp(-x));
         return softmax * (1 - softmax); // Simplified derivative
       },
+    };
+
+    // Runtime Behavior Descriptions
+    const runtimeDescriptions = {
+      "ReLU": (x) => `
+        <strong>ReLU (Rectified Linear Unit)</strong><br>
+        Input: ${x.toFixed(2)}<br>
+        Output: ${Math.max(0, x).toFixed(2)}<br>
+        Behavior: For positive inputs (${x > 0 ? "like this one" : "not this one"}), ReLU outputs the input directly.
+        For negative inputs, it outputs zero. This makes ReLU simple and efficient but can cause "dead neurons" for negative inputs.
+      `,
+      "Sigmoid": (x) => `
+        <strong>Sigmoid</strong><br>
+        Input: ${x.toFixed(2)}<br>
+        Output: ${(1 / (1 + Math.exp(-x))).toFixed(2)}<br>
+        Behavior: Sigmoid squashes all inputs into a range between 0 and 1. It's useful for binary classification tasks
+        but suffers from vanishing gradients for extreme inputs (${Math.abs(x) > 5 ? "like this one" : "not this one"}).
+      `,
+      "Tanh": (x) => `
+        <strong>Tanh (Hyperbolic Tangent)</strong><br>
+        Input: ${x.toFixed(2)}<br>
+        Output: ${Math.tanh(x).toFixed(2)}<br>
+        Behavior: Tanh squashes inputs into a range between -1 and 1. It's similar to Sigmoid but centered around zero,
+        making it better for some applications. However, it also suffers from vanishing gradients for extreme inputs (${Math.abs(x) > 5 ? "like this one" : "not this one"}).
+      `,
+      "Leaky ReLU": (x) => `
+        <strong>Leaky ReLU</strong><br>
+        Input: ${x.toFixed(2)}<br>
+        Output: ${(x > 0 ? x : 0.01 * x).toFixed(2)}<br>
+        Behavior: Leaky ReLU is like ReLU but allows small negative values (${x < 0 ? "like this one" : "not this one"})
+        to pass through. This helps prevent "dead neurons" caused by ReLU.
+      `,
+      "Softmax": (x) => `
+        <strong>Softmax</strong><br>
+        Input: ${x.toFixed(2)}<br>
+        Output: ${(Math.exp(x) / (Math.exp(x) + Math.exp(-x))).toFixed(2)}<br>
+        Behavior: Softmax converts inputs into probabilities that sum to 1. It's commonly used in multi-class classification
+        problems to represent the likelihood of each class.
+      `,
     };
 
     // Chart Initialization
@@ -204,16 +238,7 @@
 
       // Update Explanation
       const explanationDiv = document.getElementById("explanation");
-      explanationDiv.innerHTML = `
-        <p><strong>${selectedFunction}</strong><br>
-        Input: ${xValue.toFixed(2)}<br>
-        Output: ${activationFunctions[selectedFunction](xValue).toFixed(2)}<br>
-        Gradient: ${derivatives[selectedFunction](xValue).toFixed(2)}</p>
-      `;
-
-      // Update Educational Content
-      const infoPanel = document.getElementById("function-info");
-      infoPanel.innerHTML = getFunctionInfo(selectedFunction);
+      explanationDiv.innerHTML = runtimeDescriptions[selectedFunction](xValue);
 
       // Update Challenge
       const challengeQuestion = document.getElementById("challenge-question");
@@ -224,18 +249,6 @@
 
       // Simulate Learning Curve
       simulateLearningCurve(selectedFunction);
-    }
-
-    // Educational Content
-    function getFunctionInfo(func) {
-      const info = {
-        ReLU: "ReLU is widely used in deep learning due to its simplicity and efficiency.",
-        Sigmoid: "Sigmoid is commonly used in binary classification tasks.",
-        Tanh: "Tanh is similar to Sigmoid but outputs values between -1 and 1.",
-        LeakyReLU: "Leaky ReLU addresses the dying ReLU problem by allowing small negative values.",
-        Softmax: "Softmax is used in multi-class classification to convert logits into probabilities.",
-      };
-      return info[func] || "No information available.";
     }
 
     // Gamification Challenge
