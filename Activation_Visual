@@ -1,0 +1,286 @@
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Activation Function Visualizer</title>
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      background-color: #f9f9f9;
+    }
+    .sidebar {
+      background-color: #f0f0f0;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      height: fit-content;
+    }
+    canvas {
+      max-width: 100%;
+      height: auto;
+    }
+    .info-panel, .challenge {
+      margin-top: 20px;
+      padding: 15px;
+      border-radius: 8px;
+    }
+    .info-panel {
+      background-color: #fff;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    .challenge {
+      background-color: #d1e7dd;
+      border: 1px solid #badbcc;
+    }
+    .comparison-graph {
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container-fluid">
+    <div class="row">
+      <!-- Sidebar for Input Controls -->
+      <div class="col-md-3">
+        <div class="sidebar">
+          <h4>Input Controls</h4>
+          <div class="mb-3">
+            <label for="x-value" class="form-label">Input Value (x):</label>
+            <input type="number" id="x-value" class="form-control" value="0" step="0.1">
+          </div>
+          <div class="mb-3">
+            <label for="function-select" class="form-label">Select Function:</label>
+            <select id="function-select" class="form-select">
+              <option value="ReLU">ReLU</option>
+              <option value="Sigmoid">Sigmoid</option>
+              <option value="Tanh">Tanh</option>
+              <option value="LeakyReLU">Leaky ReLU</option>
+              <option value="Softmax">Softmax</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label for="x-min" class="form-label">X Min:</label>
+            <input type="number" id="x-min" class="form-control" value="-10" step="1">
+          </div>
+          <div class="mb-3">
+            <label for="x-max" class="form-label">X Max:</label>
+            <input type="number" id="x-max" class="form-control" value="10" step="1">
+          </div>
+          <button onclick="updateGraphs()" class="btn btn-primary w-100">Update Graphs</button>
+        </div>
+      </div>
+
+      <!-- Main Content -->
+      <div class="col-md-9">
+        <h1 class="text-center mb-4">Activation Function Visualizer</h1>
+
+        <!-- Activation and Gradient Graphs -->
+        <h4>Activation and Gradient Visualization</h4>
+        <div class="row">
+          <div class="col-md-6">
+            <canvas id="activation-graph"></canvas>
+          </div>
+          <div class="col-md-6">
+            <canvas id="gradient-graph"></canvas>
+          </div>
+        </div>
+
+        <!-- Explanation -->
+        <h4>Explanation</h4>
+        <div class="info-panel" id="explanation">
+          <p>Select an activation function and input value to see the results.</p>
+        </div>
+
+        <!-- Educational Content -->
+        <h4>Educational Content</h4>
+        <div class="info-panel" id="info-panel">
+          <p id="function-info">Select an activation function to learn more about it.</p>
+        </div>
+
+        <!-- Gamification Challenge -->
+        <h4>Challenge</h4>
+        <div class="challenge" id="challenge">
+          <p id="challenge-question">Can you predict the output of the selected function for x = 0?</p>
+          <button onclick="checkChallenge()" class="btn btn-success">Submit Answer</button>
+          <p id="challenge-result"></p>
+        </div>
+
+        <!-- Multiple Function Comparison -->
+        <h4>Multiple Function Comparison</h4>
+        <div class="comparison-graph">
+          <canvas id="comparison-graph"></canvas>
+        </div>
+
+        <!-- Real-Time Learning Curve Visualization -->
+        <h4>Learning Curve Visualization</h4>
+        <canvas id="learning-curve"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Activation Functions
+    const activationFunctions = {
+      ReLU: (x) => Math.max(0, x),
+      Sigmoid: (x) => 1 / (1 + Math.exp(-x)),
+      Tanh: (x) => Math.tanh(x),
+      LeakyReLU: (x) => (x > 0 ? x : 0.01 * x),
+      Softmax: (x) => Math.exp(x) / (Math.exp(x) + Math.exp(-x)), // Simplified for single input
+    };
+
+    // Derivatives (Gradients)
+    const derivatives = {
+      ReLU: (x) => (x > 0 ? 1 : 0),
+      Sigmoid: (x) => {
+        const sigmoid = 1 / (1 + Math.exp(-x));
+        return sigmoid * (1 - sigmoid);
+      },
+      Tanh: (x) => 1 - Math.pow(Math.tanh(x), 2),
+      LeakyReLU: (x) => (x > 0 ? 1 : 0.01),
+      Softmax: (x) => {
+        const softmax = Math.exp(x) / (Math.exp(x) + Math.exp(-x));
+        return softmax * (1 - softmax); // Simplified derivative
+      },
+    };
+
+    // Chart Initialization
+    let activationChart, gradientChart, comparisonChart, learningCurveChart;
+
+    function initCharts() {
+      const ctxActivation = document.getElementById("activation-graph").getContext("2d");
+      const ctxGradient = document.getElementById("gradient-graph").getContext("2d");
+      const ctxComparison = document.getElementById("comparison-graph").getContext("2d");
+      const ctxLearningCurve = document.getElementById("learning-curve").getContext("2d");
+
+      activationChart = new Chart(ctxActivation, {
+        type: "line",
+        data: { labels: [], datasets: [{ label: "Activation", data: [], borderColor: "blue", borderWidth: 2, fill: false }] },
+        options: { responsive: true, scales: { x: { beginAtZero: true }, y: { beginAtZero: false } } },
+      });
+
+      gradientChart = new Chart(ctxGradient, {
+        type: "line",
+        data: { labels: [], datasets: [{ label: "Gradient", data: [], borderColor: "red", borderWidth: 2, fill: false }] },
+        options: { responsive: true, scales: { x: { beginAtZero: true }, y: { beginAtZero: false } } },
+      });
+
+      comparisonChart = new Chart(ctxComparison, {
+        type: "line",
+        data: { labels: [], datasets: [] },
+        options: { responsive: true, scales: { x: { beginAtZero: true }, y: { beginAtZero: false } } },
+      });
+
+      learningCurveChart = new Chart(ctxLearningCurve, {
+        type: "line",
+        data: { labels: [], datasets: [{ label: "Loss", data: [], borderColor: "green", borderWidth: 2, fill: false }] },
+        options: { responsive: true, scales: { x: { beginAtZero: true }, y: { beginAtZero: false } } },
+      });
+    }
+
+    // Update Graphs Based on User Input
+    function updateGraphs() {
+      const xValue = parseFloat(document.getElementById("x-value").value);
+      const selectedFunction = document.getElementById("function-select").value;
+      const xMin = parseFloat(document.getElementById("x-min").value);
+      const xMax = parseFloat(document.getElementById("x-max").value);
+
+      // Generate Data Points
+      const xRange = Array.from({ length: 100 }, (_, i) => xMin + (i * (xMax - xMin)) / 99);
+      const activationData = xRange.map((x) => activationFunctions[selectedFunction](x));
+      const gradientData = xRange.map((x) => derivatives[selectedFunction](x));
+
+      // Update Activation Chart
+      activationChart.data.labels = xRange;
+      activationChart.data.datasets[0].data = activationData;
+      activationChart.update();
+
+      // Update Gradient Chart
+      gradientChart.data.labels = xRange;
+      gradientChart.data.datasets[0].data = gradientData;
+      gradientChart.update();
+
+      // Update Explanation
+      const explanationDiv = document.getElementById("explanation");
+      explanationDiv.innerHTML = `
+        <p><strong>${selectedFunction}</strong><br>
+        Input: ${xValue.toFixed(2)}<br>
+        Output: ${activationFunctions[selectedFunction](xValue).toFixed(2)}<br>
+        Gradient: ${derivatives[selectedFunction](xValue).toFixed(2)}</p>
+      `;
+
+      // Update Educational Content
+      const infoPanel = document.getElementById("function-info");
+      infoPanel.innerHTML = getFunctionInfo(selectedFunction);
+
+      // Update Challenge
+      const challengeQuestion = document.getElementById("challenge-question");
+      challengeQuestion.textContent = `Can you predict the output of ${selectedFunction} for x = ${xValue}?`;
+
+      // Update Comparison Graph
+      updateComparisonGraph(xRange);
+
+      // Simulate Learning Curve
+      simulateLearningCurve(selectedFunction);
+    }
+
+    // Educational Content
+    function getFunctionInfo(func) {
+      const info = {
+        ReLU: "ReLU is widely used in deep learning due to its simplicity and efficiency.",
+        Sigmoid: "Sigmoid is commonly used in binary classification tasks.",
+        Tanh: "Tanh is similar to Sigmoid but outputs values between -1 and 1.",
+        LeakyReLU: "Leaky ReLU addresses the dying ReLU problem by allowing small negative values.",
+        Softmax: "Softmax is used in multi-class classification to convert logits into probabilities.",
+      };
+      return info[func] || "No information available.";
+    }
+
+    // Gamification Challenge
+    function checkChallenge() {
+      const xValue = parseFloat(document.getElementById("x-value").value);
+      const selectedFunction = document.getElementById("function-select").value;
+      const userAnswer = prompt(`Enter the output of ${selectedFunction} for x = ${xValue}:`);
+      const correctAnswer = activationFunctions[selectedFunction](xValue).toFixed(2);
+
+      const resultDiv = document.getElementById("challenge-result");
+      if (userAnswer === correctAnswer) {
+        resultDiv.textContent = "Correct! Great job!";
+      } else {
+        resultDiv.textContent = `Incorrect. The correct answer is ${correctAnswer}.`;
+      }
+    }
+
+    // Multiple Function Comparison
+    function updateComparisonGraph(xRange) {
+      const colors = ["blue", "red", "green", "orange", "purple"];
+      comparisonChart.data.labels = xRange;
+      comparisonChart.data.datasets = Object.keys(activationFunctions).map((func, index) => ({
+        label: func,
+        data: xRange.map((x) => activationFunctions[func](x)),
+        borderColor: colors[index],
+        borderWidth: 2,
+        fill: false,
+      }));
+      comparisonChart.update();
+    }
+
+    // Real-Time Learning Curve Visualization
+    function simulateLearningCurve(func) {
+      const epochs = Array.from({ length: 50 }, (_, i) => i + 1);
+      const losses = epochs.map(() => Math.random() * (func === "Sigmoid" ? 0.5 : 1)); // Simulated loss
+      learningCurveChart.data.labels = epochs;
+      learningCurveChart.data.datasets[0].data = losses;
+      learningCurveChart.update();
+    }
+
+    // Initialize Charts on Page Load
+    window.onload = () => {
+      initCharts();
+      updateGraphs(); // Initial graph update
+    };
+  </script>
+</body>
+</html>
